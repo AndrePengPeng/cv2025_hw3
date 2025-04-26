@@ -24,8 +24,8 @@ def solve_homography(u, v):
     vx = v[:, 0].reshape((N,1))
     vy = v[:, 1].reshape((N,1))
     
-    A1 = np.concatenate((ux, uy, np.ones((N, 1)), np.zeros((N, 3)), -1 * np.multiply(ux, vy), -1 * np.multiply(uy, vx), -1 * vx), axis = 1)
-    A2 = np.concatenate((np.zeros((N, 3)), ux, uy, np.ones((N, 1)), -1 * np.multiply(ux, vy), -1 * np.multiply(uy, vx), -1 * vy), axis = 1)
+    A1 = np.concatenate((ux, uy, np.ones((N, 1)), np.zeros((N, 3)), -1 * np.multiply(ux, vx), -1 * np.multiply(uy, vx), -1 * vx), axis = 1)
+    A2 = np.concatenate((np.zeros((N, 3)), ux, uy, np.ones((N, 1)), -1 * np.multiply(ux, vy), -1 * np.multiply(uy, vy), -1 * vy), axis = 1)
     stacked = np.stack((A1, A2))
     A = stacked.transpose(1, 0, 2).reshape(-1, A1.shape[1])
     # TODO: 2.solve H with A
@@ -73,9 +73,11 @@ def warping(src, dst, H, ymin, ymax, xmin, xmax, direction='b'):
     H_inv = np.linalg.inv(H)
 
     # TODO: 1.meshgrid the (x,y) coordinate pairs
-
+    xc, yc = np.meshgrid(np.arange(xmin, xmax), np.arange(ymin, ymax))
     # TODO: 2.reshape the destination pixels as N x 3 homogeneous coordinate
-
+    xr = xc.reshape((1, (xmax-xmin)*(ymax-ymin)))
+    yr = yc.reshape((1, (xmax-xmin)*(ymax-ymin)))
+    U = np.concatenate((xr, yr, np.ones((1, (xmax-xmin)*(ymax-ymin)))), axis=0)
     if direction == 'b':
         # TODO: 3.apply H_inv to the destination pixels and retrieve (u,v) pixels, then reshape to (ymax-ymin),(xmax-xmin)
 
@@ -89,13 +91,16 @@ def warping(src, dst, H, ymin, ymax, xmin, xmax, direction='b'):
 
     elif direction == 'f':
         # TODO: 3.apply H to the source pixels and retrieve (u,v) pixels, then reshape to (ymax-ymin),(xmax-xmin)
-
+        V = np.dot(H, U)
+        Vx, Vy, _ = V / V[2,:]
+        Vx = Vx.reshape(ymax-ymin, xmax-xmin).astype(int)
+        Vy = Vy.reshape(ymax-ymin, xmax-xmin).astype(int)
         # TODO: 4.calculate the mask of the transformed coordinate (should not exceed the boundaries of destination image)
-
+        mask = ((Vx < w_dst) & (Vx >= 0)) & ((Vy < h_dst) & (Vy >= 0))
         # TODO: 5.filter the valid coordinates using previous obtained mask
-
+        Vx = Vx[mask]
+        Vy = Vy[mask]
         # TODO: 6. assign to destination image using advanced array indicing
-
-        pass
+        dst[Vy, Vx, :] = src[mask]
 
     return dst 
